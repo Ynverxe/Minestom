@@ -3,6 +3,7 @@ package net.minestom.server;
 import net.minestom.server.advancements.AdvancementManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
+import net.minestom.server.entity.serialization.EntityProcessorManager;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.extensions.ExtensionManager;
@@ -123,6 +124,8 @@ public interface ServerProcess extends Snapshotable {
      */
     @NotNull PacketProcessor packetProcessor();
 
+    @NotNull EntityProcessorManager entityProcessorManager();
+
     /**
      * Exposed socket server.
      */
@@ -144,7 +147,7 @@ public interface ServerProcess extends Snapshotable {
 
     boolean isAlive();
 
-    @ApiStatus.NonExtendable
+  @ApiStatus.NonExtendable
     interface Ticker {
         void tick(long nanoTime);
     }

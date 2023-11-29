@@ -51,6 +51,7 @@ import net.minestom.server.timer.Schedulable;
 import net.minestom.server.timer.Scheduler;
 import net.minestom.server.timer.TaskSchedule;
 import net.minestom.server.utils.ArrayUtils;
+import net.minestom.server.utils.NamespaceID;
 import net.minestom.server.utils.PacketUtils;
 import net.minestom.server.utils.async.AsyncUtils;
 import net.minestom.server.utils.block.BlockIterator;
@@ -178,6 +179,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     private long ticks;
 
     private final Acquirable<Entity> acquirable = Acquirable.of(this);
+
+    // Serialization related
+    private NamespaceID serializationKey;
 
     public Entity(@NotNull EntityType entityType, @NotNull UUID uuid) {
         this.id = generateId();
@@ -1719,6 +1723,14 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
                 .min(Comparator.comparingDouble(e -> e.getDistance(this.position)));
 
         return nearby.orElse(null);
+    }
+
+    public void setSerializationKey(@Nullable NamespaceID serializationKey) {
+        this.serializationKey = serializationKey;
+    }
+
+    public @Nullable NamespaceID serializationKey() {
+        return serializationKey;
     }
 
     public enum Pose {

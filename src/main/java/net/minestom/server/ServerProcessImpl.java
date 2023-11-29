@@ -5,6 +5,7 @@ import net.minestom.server.advancements.AdvancementManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.serialization.EntityProcessorManager;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
@@ -63,6 +64,7 @@ final class ServerProcessImpl implements ServerProcess {
     private final BiomeManager biome;
     private final AdvancementManager advancement;
     private final BossBarManager bossBar;
+    private final EntityProcessorManager entityProcessorManager;
     private final TagManager tag;
     private final Server server;
 
@@ -90,6 +92,7 @@ final class ServerProcessImpl implements ServerProcess {
         this.biome = new BiomeManager();
         this.advancement = new AdvancementManager();
         this.bossBar = new BossBarManager();
+        this.entityProcessorManager = new EntityProcessorManager();
         this.tag = new TagManager();
         this.server = new Server(packetProcessor);
 
@@ -185,6 +188,11 @@ final class ServerProcessImpl implements ServerProcess {
     @Override
     public @NotNull PacketProcessor packetProcessor() {
         return packetProcessor;
+    }
+
+    @Override
+    public @NotNull EntityProcessorManager entityProcessorManager() {
+        return entityProcessorManager;
     }
 
     @Override

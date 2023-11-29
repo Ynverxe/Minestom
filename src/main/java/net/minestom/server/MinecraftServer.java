@@ -4,6 +4,7 @@ import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import net.minestom.server.advancements.AdvancementManager;
 import net.minestom.server.adventure.bossbar.BossBarManager;
 import net.minestom.server.command.CommandManager;
+import net.minestom.server.entity.serialization.EntityProcessorManager;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.exception.ExceptionManager;
 import net.minestom.server.extensions.ExtensionManager;
@@ -187,6 +188,10 @@ public final class MinecraftServer {
 
     public static @NotNull PacketProcessor getPacketProcessor() {
         return serverProcess.packetProcessor();
+    }
+
+    public static @NotNull EntityProcessorManager getEntityProcessorManager() {
+        return serverProcess.entityProcessorManager();
     }
 
     public static boolean isStarted() {

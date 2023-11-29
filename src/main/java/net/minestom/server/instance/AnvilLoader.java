@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntIntImmutablePair;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.entity.serialization.SignedEntitySerialization;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockHandler;
 import net.minestom.server.utils.NamespaceID;
@@ -33,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AnvilLoader implements IChunkLoader {
+
     private final static Logger LOGGER = LoggerFactory.getLogger(AnvilLoader.class);
     private static final Biome BIOME = Biome.PLAINS;
 
@@ -127,6 +129,9 @@ public class AnvilLoader implements IChunkLoader {
 
             // Block entities
             loadBlockEntities(chunk, chunkReader);
+
+            // Entities
+            SignedEntitySerialization.deserializeChunkEntities(chunk, chunkReader.getOldEntities().asListView());
         }
         synchronized (perRegionLoadedChunks) {
             int regionX = CoordinatesKt.chunkToRegion(chunkX);
@@ -432,6 +437,8 @@ public class AnvilLoader implements IChunkLoader {
 
         chunkWriter.setSectionsData(NBT.List(NBTType.TAG_Compound, sectionData));
         chunkWriter.setBlockEntityData(NBT.List(NBTType.TAG_Compound, blockEntities));
+
+        chunkWriter.setOldEntityData(NBT.List(NBTType.TAG_Compound, SignedEntitySerialization.serializeChunkEntities(chunk)));
     }
 
     /**
