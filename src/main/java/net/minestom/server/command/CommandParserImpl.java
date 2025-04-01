@@ -13,10 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -110,15 +107,45 @@ final class CommandParserImpl implements CommandParser {
             CommandExecutor executor = nullSafeGetter(lastNode.execution(), Graph.Execution::executor);
             if (executor != null) return ValidCommand.executor(input, chain, executor);
         }
+
         // If here, then the command failed or didn't have an executor
 
         // Look for a default executor, or give up if we got nowhere
         if (lastNode.equals(parent)) return UnknownCommandResult.INSTANCE;
+
+        if (lastNodeResult.argumentResult instanceof ArgumentResult.IncompatibleType<?> incompatibleType) {
+            Node resultParent = findParent(graph, result.node);
+
+            if (resultParent != null && resultParent.next().size() == 1) {
+                ArgumentCallback callback = result.node.argument().getCallback();
+
+                return InvalidCommand.invalid(input, chain, incompatibleType.exception, callback);
+            }
+        }
+
         if (chain.defaultExecutor != null) {
             return ValidCommand.defaultExecutor(input, chain);
         }
 
         return InvalidCommand.invalid(input, chain);
+    }
+
+    public static Graph.Node findParent(Graph root, Graph.Node target) {
+        return findParentHelper(root.root(), target, null);
+    }
+
+    private static Graph.Node findParentHelper(Graph.Node current, Graph.Node target, Graph.Node parent) {
+        if (current.equals(target)) {
+            return parent;
+        }
+
+        for (Graph.Node child : current.next()) {
+            Graph.Node found = findParentHelper(child, target, current);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     @Contract("null, _ -> null; !null, null -> fail; !null, !null -> _")
@@ -187,8 +214,14 @@ final class CommandParserImpl implements CommandParser {
         }
         // None were successful. Either incompatible types, or syntax error. It doesn't matter to us, though
 
+        // Force to use the error callback instead the default executor
+        if (error != null && error.node.argument().hasErrorCallback()) {
+            return error;
+        }
+
         // Try to execute this node
         CommandExecutor executor = nullSafeGetter(node.execution(), Graph.Execution::executor);
+
         if (executor == null) {
             // Stuck here with no executor
             if (error != null) {
@@ -270,15 +303,22 @@ final class CommandParserImpl implements CommandParser {
     }
 
     record InvalidCommand(String input, CommandCondition condition, ArgumentCallback callback,
-                          ArgumentResult.SyntaxError<?> error,
+                          ArgumentSyntaxException error,
                           @NotNull Map<String, ArgumentResult<Object>> arguments, CommandExecutor globalListener,
                           @Nullable SuggestionCallback suggestionCallback, List<Argument<?>> args)
             implements InternalKnownCommand, Result.KnownCommand.Invalid {
 
         static InvalidCommand invalid(String input, Chain chain) {
             return new InvalidCommand(input, chain.mergedConditions(),
-                    null/*todo command syntax callback*/,
-                    new ArgumentResult.SyntaxError<>("Command has trailing data.", null, -1),
+                    null,
+                    new ArgumentSyntaxException("Command has trailing data.", "null", -1), // What I have to pass as "input"?
+                    chain.collectArguments(), chain.mergedGlobalExecutors(), chain.suggestionCallback, chain.getArgs());
+        }
+
+        static InvalidCommand invalid(String input, Chain chain, ArgumentSyntaxException error, ArgumentCallback callback) {
+            return new InvalidCommand(input, chain.mergedConditions(),
+                    callback,
+                    error,
                     chain.collectArguments(), chain.mergedGlobalExecutors(), chain.suggestionCallback, chain.getArgs());
         }
 
@@ -341,7 +381,7 @@ final class CommandParserImpl implements CommandParser {
     }
 
     record InvalidExecutableCmd(CommandCondition condition, CommandExecutor globalListener, ArgumentCallback callback,
-                                ArgumentResult.SyntaxError<?> error, String input,
+                                ArgumentSyntaxException error, String input,
                                 Map<String, ArgumentResult<Object>> arguments) implements ExecutableCommand {
         @Override
         public @NotNull Result execute(@NotNull CommandSender sender) {
@@ -351,7 +391,7 @@ final class CommandParserImpl implements CommandParser {
                 return ExecutionResultImpl.PRECONDITION_FAILED;
             }
             if (callback != null)
-                callback.apply(sender, new ArgumentSyntaxException(error.message(), error.input(), error.code()));
+                callback.apply(sender, error);
             return ExecutionResultImpl.INVALID_SYNTAX;
         }
     }
@@ -442,8 +482,8 @@ final class CommandParserImpl implements CommandParser {
                 final String remaining = reader.readRemaining();
                 return new ArgumentResult.Success<>(argument.parse(sender, remaining), remaining);
             }
-        } catch (ArgumentSyntaxException ignored) {
-            return new ArgumentResult.IncompatibleType<>();
+        } catch (ArgumentSyntaxException e) {
+            return new ArgumentResult.IncompatibleType<>(e);
         }
         // Bruteforce
         assert argument.allowSpace() && !argument.useRemaining();
@@ -458,7 +498,7 @@ final class CommandParserImpl implements CommandParser {
                 current.append(reader.readWord());
             }
         }
-        return new ArgumentResult.IncompatibleType<>();
+        return new ArgumentResult.IncompatibleType<>(null);
     }
 
     private sealed interface ArgumentResult<R> {
@@ -466,7 +506,7 @@ final class CommandParserImpl implements CommandParser {
                 implements ArgumentResult<T> {
         }
 
-        record IncompatibleType<T>()
+        record IncompatibleType<T>(ArgumentSyntaxException exception)
                 implements ArgumentResult<T> {
         }
 
